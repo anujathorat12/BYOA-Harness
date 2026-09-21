@@ -77,7 +77,13 @@ security-critical paths. Findings are split into four groups so nothing is hidde
     `docker version`. During a real incident (host disk full, Docker storage remounted read-only) it kept reporting ready
     while no container could be created and Postgres could not write. A meaningful probe must also prove a sandbox can start
     and the database can write; decide the cost (extra latency per probe) before changing it.
-13. **Supply chain**: Python dependencies use `>=` ranges without a lockfile; base images are pinned by tag not digest;
+13. **The startup reaper is global to the Docker daemon.** `reap_orphans()` removes every container labelled
+    `byoa.managed=1`, so a second harness (or a test run) on the same daemon can kill the first one's live sandboxes.
+    Scope containers with an instance label (e.g. `byoa.instance=<id>`) before running more than one harness per daemon.
+14. **Startup depends on Docker answering.** Each Docker call has a 20 s timeout and startup tolerates failure, which is
+    correct, but a wedged daemon makes every start (and every API-level test) slow instead of failing fast. Consider a
+    single fail-fast probe with a short timeout.
+15. **Supply chain**: Python dependencies use `>=` ranges without a lockfile; base images are pinned by tag not digest;
     no SBOM or image scanning in CI.
 
 ## D. Known limitations
