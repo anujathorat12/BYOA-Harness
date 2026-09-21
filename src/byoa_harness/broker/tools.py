@@ -214,7 +214,10 @@ class HttpGet(Tool):
         url = f"{p['scheme']}://{ip}:{p['port']}{p['path']}"
         headers = {"Host": action.resource if p["port"] in (80, 443) else f"{action.resource}:{p['port']}"}
         ext = {"sni_hostname": action.resource} if p["scheme"] == "https" else {}
-        async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client,                 client.stream("GET", url, headers=headers, extensions=ext) as r:
+        async with (
+            httpx.AsyncClient(timeout=10, follow_redirects=False) as client,
+            client.stream("GET", url, headers=headers, extensions=ext) as r,
+        ):
             body = b""
             async for chunk in r.aiter_bytes():
                 body += chunk
