@@ -9,3 +9,8 @@ dist/
 build/
 .coverage
 certs/*.pem
+node_modules/
+console/dist/
+console/test-results/
+console/playwright-report/
+console/.env
