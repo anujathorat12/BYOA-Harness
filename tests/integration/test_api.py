@@ -1,6 +1,7 @@
 """API-level tests. Sessions run in the real sandbox, so these are marked `docker`; authz/validation
 tests that never start a container run everywhere."""
 import asyncio
+import subprocess
 from pathlib import Path
 
 import httpx
@@ -147,6 +148,10 @@ async def test_full_flow_allow_escalate_deny_and_audit(api):
     backends = api.app.state.tool_ctx.backends
     await asyncio.sleep(1)
     assert backends.prod_changes == []  # nothing happened while pending
+    # the sandbox process itself is frozen by the cgroup freezer, not merely blocked on a pipe
+    paused = subprocess.run(["docker", "inspect", "-f", "{{.State.Paused}}", f"byoa-{sid}"],
+                            capture_output=True, text=True).stdout.strip()
+    assert paused == "true"
 
     assert (await api.post(f"/v1/approvals/{apr['id']}/approve", headers=hdr("appr"), json={"comment": "ok"})).status_code == 200
     s = await wait_status(api, sid)
