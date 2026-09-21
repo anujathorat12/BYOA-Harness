@@ -1012,6 +1012,36 @@
             }
           },
           {
+            "description": "page towards older events (newest first)",
+            "in": "query",
+            "name": "before_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "page towards older events (newest first)",
+              "title": "Before Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "default": "asc",
+              "pattern": "^(asc|desc)$",
+              "title": "Order",
+              "type": "string"
+            }
+          },
+          {
             "in": "query",
             "name": "limit",
             "required": false,
@@ -1580,6 +1610,25 @@
         "summary": "Server-sent events: live audit/progress stream until the session ends",
         "tags": [
           "sessions"
+        ]
+      }
+    },
+    "/v1/whoami": {
+      "get": {
+        "operationId": "whoami_v1_whoami_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Identity behind the presented API key (used by the operator console)",
+        "tags": [
+          "auth"
         ]
       }
     }

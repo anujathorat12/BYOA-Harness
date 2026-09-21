@@ -214,6 +214,10 @@ def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAP
 
     v1 = "/v1"
 
+    @app.get(f"{v1}/whoami", tags=["auth"], summary="Identity behind the presented API key (used by the operator console)")
+    async def whoami(p: Principal = Depends(principal)):
+        return {"name": p.name, "roles": sorted(p.roles), "separation_of_duties": settings.separation_of_duties}
+
     # ------------------------------------------------------------------------------ agents
     @app.post(f"{v1}/agents", status_code=201, tags=["agents"], summary="Register an agent (new immutable version)")
     async def register_agent(body: AgentRegistration, p: Principal = Depends(need("developer"))):
@@ -240,7 +244,9 @@ def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAP
     @app.get(f"{v1}/agents", tags=["agents"])
     async def list_agents(p: Principal = Depends(need("developer", "auditor", "approver"))):
         rows = await db(store.list_agents, None if is_privileged(p) else p.name)
-        return [{k: r[k] for k in ("id", "version", "shape", "owner", "created_at")} for r in rows]
+        attached = await db(store.list_all_attachments)
+        return [{**{k: r[k] for k in ("id", "version", "shape", "owner", "created_at")},
+                 "policies": attached.get(r["id"], [])} for r in rows]
 
     @app.get(f"{v1}/agents/{{agent_id}}", tags=["agents"])
     async def get_agent(agent_id: str, version: int | None = None,
@@ -417,11 +423,16 @@ def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAP
     async def audit(session_id: str | None = None, agent_id: str | None = None, kind: str | None = None,
                     effect: str | None = None, rule_id: str | None = None, action_type: str | None = None,
                     since: str | None = None, until: str | None = None, after_id: int = 0,
+                    before_id: int | None = Query(None, ge=1, description="page towards older events (newest first)"),
+                    order: str = Query("asc", pattern="^(asc|desc)$"),
                     limit: int = Query(100, ge=1, le=1000), p: Principal = Depends(need("auditor", "approver"))):
         rows = await db(store.query_audit, session_id=session_id, agent_id=agent_id, kind=kind, effect=effect,
                         rule_id=rule_id, action_type=action_type, since=since, until=until, after_id=after_id,
-                        limit=limit)
-        return {"events": [_event_view(r) for r in rows], "next_after_id": rows[-1]["id"] if rows else after_id}
+                        before_id=before_id, descending=order == "desc", limit=limit)
+        newest_first = order == "desc" or before_id is not None
+        return {"events": [_event_view(r) for r in rows],
+                "next_after_id": rows[-1]["id"] if rows and not newest_first else after_id,
+                "next_before_id": rows[-1]["id"] if rows and newest_first else None}
 
     @app.get(f"{v1}/audit/sessions/{{sid}}/verify", tags=["audit"], summary="Verify the session's hash chain")
     async def verify(sid: str, _: Principal = Depends(need("auditor"))):

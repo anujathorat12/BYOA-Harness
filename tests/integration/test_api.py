@@ -272,3 +272,30 @@ async def test_other_developer_cannot_see_or_cancel_my_session(api):
     assert (await api.get(f"/v1/sessions/{sid}", headers=hdr("dev2"))).status_code == 404
     assert (await api.delete(f"/v1/sessions/{sid}", headers=hdr("dev2"))).status_code == 404
     await api.delete(f"/v1/sessions/{sid}", headers=hdr("dev"))
+
+
+# ------------------------------------------------ additions for the operator console (no docker needed)
+async def test_whoami_reports_identity_and_sod_flag(api):
+    r = await api.get("/v1/whoami", headers=hdr("appr"))
+    assert r.json() == {"name": "bob", "roles": ["approver"], "separation_of_duties": True}
+    assert (await api.get("/v1/whoami")).status_code == 401
+
+
+async def test_agent_list_includes_attached_policies(api):
+    await register_it_agent(api)
+    rows = (await api.get("/v1/agents", headers=hdr("dev"))).json()
+    assert rows[0]["id"] == "it-ops-agent"
+    assert rows[0]["policies"] == [{"policy_id": "enterprise-it", "policy_version": None}]
+
+
+async def test_audit_newest_first_paging(api):
+    store = api.app.state.store
+    for i in range(5):
+        store.append_audit("s-page", "a", "action.decided", {"i": i}, effect="deny", rule_id="r")
+    first = (await api.get("/v1/audit", headers=hdr("aud"), params={"session_id": "s-page", "order": "desc", "limit": 2})).json()
+    assert [e["payload"]["i"] for e in first["events"]] == [4, 3] and first["next_before_id"] is not None
+    older = (await api.get("/v1/audit", headers=hdr("aud"), params={
+        "session_id": "s-page", "before_id": first["next_before_id"], "limit": 10})).json()
+    assert [e["payload"]["i"] for e in older["events"]] == [2, 1, 0] and older["next_before_id"] is not None
+    asc = (await api.get("/v1/audit", headers=hdr("aud"), params={"session_id": "s-page"})).json()
+    assert [e["payload"]["i"] for e in asc["events"]] == [0, 1, 2, 3, 4]

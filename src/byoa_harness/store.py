@@ -211,6 +211,15 @@ class Store:
             return c.execute(attachments.delete().where(sa.and_(
                 attachments.c.agent_id == agent_id, attachments.c.policy_id == policy_id))).rowcount > 0
 
+    def list_all_attachments(self) -> dict[str, list[dict[str, Any]]]:
+        with self.engine.connect() as c:
+            rows = c.execute(sa.select(attachments).order_by(attachments.c.agent_id, attachments.c.policy_id)).mappings()
+            out: dict[str, list[dict[str, Any]]] = {}
+            for r in rows:
+                out.setdefault(r["agent_id"], []).append(
+                    {"policy_id": r["policy_id"], "policy_version": r["policy_version"]})
+        return out
+
     def list_attachments(self, agent_id: str) -> list[dict[str, Any]]:
         with self.engine.connect() as c:
             return [dict(r) for r in c.execute(
@@ -299,9 +308,12 @@ class Store:
     def query_audit(self, *, session_id: str | None = None, agent_id: str | None = None,
                     kind: str | None = None, effect: str | None = None, rule_id: str | None = None,
                     action_type: str | None = None, since: str | None = None, until: str | None = None,
-                    after_id: int = 0, limit: int = 100) -> list[dict[str, Any]]:
-        q = sa.select(audit_events).where(audit_events.c.id > after_id).order_by(audit_events.c.id).limit(
-            min(max(limit, 1), 1000))
+                    after_id: int = 0, before_id: int | None = None, descending: bool = False,
+                    limit: int = 100) -> list[dict[str, Any]]:
+        q = sa.select(audit_events).where(audit_events.c.id > after_id).limit(min(max(limit, 1), 1000))
+        if before_id is not None:
+            q = q.where(audit_events.c.id < before_id)
+        q = q.order_by(audit_events.c.id.desc() if descending or before_id is not None else audit_events.c.id)
         for col, val in ((audit_events.c.session_id, session_id), (audit_events.c.agent_id, agent_id),
                          (audit_events.c.kind, kind), (audit_events.c.effect, effect),
                          (audit_events.c.rule_id, rule_id), (audit_events.c.action_type, action_type)):
