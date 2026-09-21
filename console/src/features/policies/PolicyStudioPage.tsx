@@ -14,6 +14,7 @@ import { formatTs } from "@/lib/format";
 import type { PolicyVersionRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { EvaluatePanel, SimulatePanel, SourcePicker, defaultSource } from "./DryRun";
+import { PlainEnglish } from "./PlainEnglish";
 import { POLICY_TEMPLATE, PolicyEditor } from "./PolicyEditor";
 import { useLiveValidation } from "./useLiveValidation";
 
@@ -113,7 +114,12 @@ function Studio() {
                   <h2 className="font-mono text-lg font-semibold">{selectedId} <span className="text-sm font-normal text-muted-foreground">v{shownVersion}</span></h2>
                   {doc.data && <Button variant="outline" size="sm" onClick={() => startDraft(doc.data.document)} data-testid="edit-as-new">Edit as new version</Button>}
                 </div>
-                {doc.isPending ? <LoadingRows rows={3} /> : doc.isError ? <ErrorNote error={doc.error} /> : <JsonBlock value={doc.data.document} className="max-h-[420px]" />}
+                {doc.isPending ? <LoadingRows rows={3} /> : doc.isError ? <ErrorNote error={doc.error} /> : (
+                  <div className="grid grid-cols-2 items-start gap-4">
+                    <JsonBlock value={doc.data.document} className="max-h-[560px]" data-testid="policy-yaml" />
+                    <PlainEnglish source={doc.data.document} />
+                  </div>
+                )}
                 <h3 className="text-sm font-semibold">Version history</h3>
                 <DataTable dense data={versions.slice().reverse()} columns={versionCols} getRowId={(r) => `${r.id}@${r.version}`} selectedId={`${selectedId}@${shownVersion}`} onRowClick={(r) => select(r.id, r.version)} />
               </>
@@ -121,12 +127,15 @@ function Studio() {
           </TabsContent>
 
           <TabsContent value="editor" className="pt-4">
-            <PolicyEditor
-              draft={draft}
-              onChange={setDraft}
-              validation={validation}
-              onSaved={(id, version) => { select(id, version); setTab("policy"); }}
-            />
+            <div className="grid grid-cols-2 items-start gap-4">
+              <PolicyEditor
+                draft={draft}
+                onChange={setDraft}
+                validation={validation}
+                onSaved={(id, version) => { select(id, version); setTab("policy"); }}
+              />
+              <PlainEnglish source={draft} />
+            </div>
           </TabsContent>
 
           <TabsContent value="dryrun" className="space-y-6 pt-4">
