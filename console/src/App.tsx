@@ -14,6 +14,7 @@ const SessionsPage = lazy(() => import("@/features/sessions/SessionsPage").then(
 const SessionDetailPage = lazy(() => import("@/features/sessions/SessionDetailPage").then((m) => ({ default: m.SessionDetailPage })));
 const ApprovalsPage = lazy(() => import("@/features/approvals/ApprovalsPage").then((m) => ({ default: m.ApprovalsPage })));
 const AuditPage = lazy(() => import("@/features/audit/AuditPage").then((m) => ({ default: m.AuditPage })));
+const AttackLabPage = lazy(() => import("@/features/attacks/AttackLabPage").then((m) => ({ default: m.AttackLabPage })));
 
 export function App() {
   const { status } = useAuth();
@@ -36,6 +37,7 @@ export function App() {
           <Route path="sessions/:id" element={<SessionDetailPage />} />
           <Route path="approvals" element={<ApprovalsPage />} />
           <Route path="audit" element={<AuditPage />} />
+          <Route path="attack-lab" element={<AttackLabPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
