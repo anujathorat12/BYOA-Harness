@@ -52,8 +52,7 @@ npm run build        # strict typecheck + production build
 | Audit Log | What happened, which rule fired, can I prove it? | `/v1/audit`, `/v1/audit/sessions/{id}/verify` |
 | Attack Lab | Does the sandbox really stop a hostile agent? | registers and runs four real hostile agents (`/v1/agents`, `/v1/agents/{id}/sessions`); the verdict is read from the real session, never faked |
 
-Two display-only helpers: **Policy in plain English** (beside the YAML in Policy Studio; `lib/explainPolicy.ts` only
-rephrases the document, the server engine still decides everything) and **Approval alerts** (toast always; opt-in sound,
+One display-only helper: **Approval alerts** (toast always; opt-in sound,
 desktop notification and tab-title badge for roles that can decide approvals; approvals already waiting on page load stay silent).
 
 ## Design decisions you should know about
@@ -74,8 +73,8 @@ desktop notification and tab-title badge for roles that can decide approvals; ap
 
 ## Tests
 
-* `npm test`: 44 unit tests.
-* `npm run e2e`: **44 Playwright tests in a real browser against the real backend** (no mocks): two-user
+* `npm test`: 36 unit tests.
+* `npm run e2e`: **41 Playwright tests in a real browser against the real backend** (no mocks): two-user
   approve-and-resume, separation of duties, role restrictions, policy versioning and replay diffs, tamper detection (it edits a
   row in Postgres and expects "Chain BROKEN", then restores it), cursor paging.
   Requires the stack running and Edge or Chrome (`E2E_BROWSER_CHANNEL=chrome` to switch).
