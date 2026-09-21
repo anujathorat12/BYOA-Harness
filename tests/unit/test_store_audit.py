@@ -1,7 +1,6 @@
 import threading
 
 import pytest
-import sqlalchemy as sa
 
 from byoa_harness import store as st
 

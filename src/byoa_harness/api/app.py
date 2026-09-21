@@ -22,8 +22,16 @@ from ..broker.llm import make_provider
 from ..broker.tools import Backends, ToolContext, default_tools
 from ..config import Principal, Settings
 from ..logging_setup import setup_logging
-from ..policy import (Action, CanonicalizationError, EvalContext, HistoricalAction, PolicyError, evaluate_all,
-                      parse_policy, simulate)
+from ..policy import (
+    Action,
+    CanonicalizationError,
+    EvalContext,
+    HistoricalAction,
+    PolicyError,
+    evaluate_all,
+    parse_policy,
+    simulate,
+)
 from ..runtime.manager import SessionManager, SubmitError
 from ..runtime.shapes import SHAPES, ManifestError
 from ..store import Store

@@ -148,7 +148,6 @@ async def test_approval_denied_never_executes(env):
 
 
 async def test_approval_timeout_denies(env):
-    env.settings.__class__  # Settings is frozen; build a service with a short timeout instead
     svc = ApprovalService(env.store, Settings(approval_timeout_s=1))
     env.broker.approvals = svc
     g = env.gov([policy("enterprise-it")])

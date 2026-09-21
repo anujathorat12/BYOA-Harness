@@ -13,7 +13,7 @@ from __future__ import annotations
 import fnmatch
 from typing import Any
 
-from .model import (ALLOW, DENY, STRICTNESS, Action, Condition, Decision, EvalContext, Policy, Rule)
+from .model import ALLOW, DENY, STRICTNESS, Action, Condition, Decision, EvalContext, Policy, Rule
 
 _MISSING = object()
 _NUMERIC_OPS = {"gt", "gte", "lt", "lte"}

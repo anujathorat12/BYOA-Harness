@@ -3,9 +3,19 @@ from pathlib import Path
 
 import pytest
 
-from byoa_harness.policy import (Action, CanonicalizationError, Cost, EvalContext, HistoricalAction,
-                                 PolicyError, canonical_resource, evaluate, evaluate_all, parse_policy,
-                                 simulate)
+from byoa_harness.policy import (
+    Action,
+    CanonicalizationError,
+    Cost,
+    EvalContext,
+    HistoricalAction,
+    PolicyError,
+    canonical_resource,
+    evaluate,
+    evaluate_all,
+    parse_policy,
+    simulate,
+)
 
 EX = Path(__file__).resolve().parents[2] / "examples" / "policies"
 CTX = EvalContext(agent_id="a1", session_id="s1")

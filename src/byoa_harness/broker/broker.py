@@ -17,8 +17,18 @@ from typing import Any
 
 from ..approvals import ApprovalService
 from ..config import Settings
-from ..policy import (ALLOW, DENY, REQUIRE_APPROVAL, Action, CanonicalizationError, Decision, EvalContext,
-                      Policy, canonical_json, evaluate_all)
+from ..policy import (
+    ALLOW,
+    DENY,
+    REQUIRE_APPROVAL,
+    Action,
+    CanonicalizationError,
+    Decision,
+    EvalContext,
+    Policy,
+    canonical_json,
+    evaluate_all,
+)
 from ..policy.canonical import sha256_hex
 from ..store import Store
 from .tools import Tool, ToolArgError, ToolContext
