@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils";
 
 interface Props<T> {
   data: T[];
-  columns: ColumnDef<T, any>[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  // Column value types differ per column (accessor keys), so the shared table cannot name a single value type.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  columns: ColumnDef<T, any>[];
   getRowId?: (row: T) => string;
   onRowClick?: (row: T) => void;
   selectedId?: string | null;

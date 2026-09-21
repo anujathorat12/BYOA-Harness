@@ -95,7 +95,7 @@ test.describe.serial("Live sessions and approvals", () => {
     const s = await submit("developer", itAgent);
     const bob = await asRole(browser, "approver");
     await bob.page.goto("/approvals");
-    const card = bob.page.locator('[data-testid^="approval-apr_"]', { hasText: s.id.slice(0, 12) }).or(bob.page.locator('[data-testid^="approval-apr_"]').first());
+    const card = bob.page.locator('[data-testid^="approval-apr_"]', { hasText: s.id.slice(0, 12) }); // this session's approval, never someone else's
     await expect(card).toBeVisible();
     await card.getByRole("button", { name: "Deny" }).click();
     await bob.page.getByLabel(/Comment/).fill("Not during the freeze");

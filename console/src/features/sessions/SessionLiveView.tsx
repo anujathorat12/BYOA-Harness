@@ -7,15 +7,14 @@ import { StatusBadge } from "@/components/badges";
 import { api } from "@/lib/api";
 import { useMe } from "@/lib/auth";
 import { can } from "@/lib/roles";
+import { isFinished } from "@/lib/types";
 import { elapsed, useNow } from "@/lib/useNow";
 import { ApprovalActions } from "@/features/approvals/ApprovalActions";
 import { SessionTimeline } from "./SessionTimeline";
 import { buildTimeline } from "./timeline";
 import { useSessionEvents, type StreamState } from "./useSessionEvents";
 
-const TERMINAL = ["succeeded", "failed", "cancelled"];
-
-export function StreamIndicator({ state }: { state: StreamState }) {
+function StreamIndicator({ state }: { state: StreamState }) {
   if (state === "live") return <span className="flex items-center gap-1.5 text-xs text-emerald-700" data-testid="stream-state"><Radio className="size-3.5 animate-pulse" /> live</span>;
   if (state === "ended") return <span className="text-xs text-muted-foreground" data-testid="stream-state">stream ended</span>;
   if (state === "reconnecting") return <span className="flex items-center gap-1.5 text-xs text-amber-700" data-testid="stream-state"><WifiOff className="size-3.5" /> reconnecting…</span>;
@@ -35,11 +34,11 @@ export function SessionLiveView({ sessionId }: { sessionId: string }) {
   const session = useQuery({
     queryKey: ["session", sessionId],
     queryFn: () => api.session(sessionId),
-    refetchInterval: (q) => (q.state.data && TERMINAL.includes(q.state.data.status) ? false : 2000),
+    refetchInterval: (q) => (q.state.data && isFinished(q.state.data.status) ? false : 2000),
   });
   const timeline = useMemo(() => buildTimeline(events), [events]);
   const s = session.data;
-  const terminal = !!s && TERMINAL.includes(s.status);
+  const terminal = !!s && isFinished(s.status);
   const frozen = !terminal ? timeline.frozen : null;
 
   // The pending approval object (needed for the separation-of-duties check) for the inline decision buttons.

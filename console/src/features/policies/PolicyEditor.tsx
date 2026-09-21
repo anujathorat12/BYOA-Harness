@@ -18,7 +18,7 @@ rules:
     reason: A human must approve production changes
 `;
 
-export function ValidationBanner({ v }: { v: Validation }) {
+function ValidationBanner({ v }: { v: Validation }) {
   if (v.state === "idle") return <p className="text-sm text-muted-foreground">Start typing: the server validates the document as you go.</p>;
   if (v.state === "checking") {
     return <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Validating with the server…</p>;

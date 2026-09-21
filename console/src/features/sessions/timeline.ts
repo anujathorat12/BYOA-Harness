@@ -13,12 +13,12 @@ export interface CallItem {
   approval?: { requested: AuditEvent; resolved?: AuditEvent };
   outcome?: AuditEvent;
 }
-export type TimelineItem =
+type TimelineItem =
   | CallItem
   | { type: "progress"; event: AuditEvent }
   | { type: "lifecycle"; event: AuditEvent };
 
-export interface FrozenInfo {
+interface FrozenInfo {
   approvalId: string;
   callId: string;
   since: string;

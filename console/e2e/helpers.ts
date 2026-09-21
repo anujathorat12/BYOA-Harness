@@ -8,7 +8,7 @@ export const KEYS = {
 };
 export type RoleName = keyof typeof KEYS;
 
-export const API = process.env.E2E_API ?? "http://localhost:8080";
+const API = process.env.E2E_API ?? "http://localhost:8080";
 
 export async function signIn(page: Page, role: RoleName) {
   await page.goto("/");

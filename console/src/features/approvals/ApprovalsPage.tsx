@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,13 +45,8 @@ function Queue() {
     setParams(next, { replace: true });
   };
 
-  // Keep something selected so the live session panel is never blank when there is work to do.
-  const first = list.data?.[0]?.id;
-  const selectedApproval = list.data?.find((a) => a.id === selected);
-  useEffect(() => {
-    if (!selectedApproval && first) setParam("selected", first);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [first, selectedApproval?.id]);
+  // Default to the first item so the live session panel is never blank while there is work to do.
+  const selectedApproval = list.data?.find((a) => a.id === selected) ?? list.data?.[0];
 
   return (
     <>
@@ -63,7 +57,7 @@ function Queue() {
         <div className="space-y-3" data-testid="approval-list">
           {list.isPending ? <LoadingRows /> : list.isError ? <ErrorNote error={list.error} title="Could not load approvals" /> : list.data.length === 0 ? (
             <Empty>{status === "pending" ? "Nothing is waiting on you. No agent is frozen." : `No ${status === "all" ? "" : status + " "}approvals.`}</Empty>
-          ) : list.data.map((a) => <ApprovalCard key={a.id} a={a} now={now} active={a.id === selected} onSelect={() => setParam("selected", a.id)} />)}
+          ) : list.data.map((a) => <ApprovalCard key={a.id} a={a} now={now} active={a.id === selectedApproval?.id} onSelect={() => setParam("selected", a.id)} />)}
         </div>
         <div className="min-w-0 rounded-md border bg-card p-4" data-testid="live-panel">
           {selectedApproval ? (

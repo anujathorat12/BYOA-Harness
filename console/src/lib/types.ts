@@ -4,6 +4,9 @@
 export type Role = "admin" | "developer" | "approver" | "auditor";
 export type Effect = "allow" | "deny" | "require-approval";
 export type SessionStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+const FINISHED: readonly SessionStatus[] = ["succeeded", "failed", "cancelled"];
+/** A session in one of these states will never change again, so polling and streaming can stop. */
+export const isFinished = (status: SessionStatus): boolean => FINISHED.includes(status);
 export type ApprovalStatus = "pending" | "approved" | "denied" | "expired";
 export type Shape = "package" | "declarative";
 
@@ -13,7 +16,7 @@ export interface Whoami {
   separation_of_duties: boolean;
 }
 
-export interface PolicyAttachmentRef {
+interface PolicyAttachmentRef {
   policy_id: string;
   policy_version: number | null; // null = follows latest at session start
 }
@@ -37,7 +40,7 @@ export interface AgentDetail {
   policies: (PolicyAttachmentRef & { agent_id: string; attached_by: string; attached_at: string })[];
 }
 
-export interface PinnedPolicy {
+interface PinnedPolicy {
   id: string;
   version: number;
   source: "agent" | "session";
@@ -83,7 +86,7 @@ export interface AuditPage {
   next_before_id: number | null;
 }
 
-export interface CanonicalAction {
+interface CanonicalAction {
   type: string;
   resource: string;
   params: Record<string, unknown>;

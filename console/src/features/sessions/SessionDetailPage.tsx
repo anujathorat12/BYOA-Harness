@@ -7,6 +7,7 @@ import { Mono } from "@/components/JsonBlock";
 import { PageHeader } from "@/components/states";
 import { api } from "@/lib/api";
 import { formatTs } from "@/lib/format";
+import { isFinished } from "@/lib/types";
 import { SessionLiveView } from "./SessionLiveView";
 
 export function SessionDetailPage() {
@@ -22,7 +23,7 @@ export function SessionDetailPage() {
     onError: (e) => toast.error(e.message),
   });
   const s = session.data;
-  const terminal = !!s && ["succeeded", "failed", "cancelled"].includes(s.status);
+  const terminal = !!s && isFinished(s.status);
 
   return (
     <>

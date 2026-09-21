@@ -68,7 +68,7 @@ interface Options {
   token?: string; // explicit token (login check) instead of the stored one
 }
 
-export async function request<T>(path: string, opts: Options = {}): Promise<T> {
+async function request<T>(path: string, opts: Options = {}): Promise<T> {
   const token = opts.token ?? credentials.get();
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(opts.query ?? {})) if (v !== undefined && v !== null && v !== "") qs.set(k, String(v));
