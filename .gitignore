@@ -14,3 +14,6 @@ console/dist/
 console/test-results/
 console/playwright-report/
 console/.env
+*.db-shm
+*.db-wal
+*.db-journal
