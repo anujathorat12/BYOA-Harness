@@ -10,16 +10,14 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"]],
   use: {
-    baseURL: "http://localhost:5180",
+    baseURL: process.env.E2E_BASE_URL ?? "http://localhost:5180",
     channel: process.env.E2E_BROWSER_CHANNEL ?? "msedge",
     headless: true,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  webServer: {
-    command: "npm run dev -- --strictPort",
-    url: "http://localhost:5180",
-    reuseExistingServer: true,
-    timeout: 60_000,
-  },
+  // Set E2E_BASE_URL (e.g. http://localhost:8081) to test the compose-served console instead of the dev server.
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : { command: "npm run dev -- --strictPort", url: "http://localhost:5180", reuseExistingServer: true, timeout: 60_000 },
 });

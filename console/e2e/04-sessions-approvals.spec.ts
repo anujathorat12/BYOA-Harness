@@ -9,7 +9,7 @@ const sleeper = `e2e-sleep-${stamp}`;
 const EX = path.resolve(import.meta.dirname, "../../examples");
 const IT_SRC = readFileSync(path.join(EX, "agents/it-ops-agent/main.py"), "utf8");
 const IT_POLICY = readFileSync(path.join(EX, "policies/enterprise-it.yaml"), "utf8");
-const BASE = "http://localhost:5180";
+const BASE = process.env.E2E_BASE_URL ?? "http://localhost:5180";
 
 async function asRole(browser: Browser, role: RoleName) {
   const ctx = await browser.newContext({ baseURL: BASE });

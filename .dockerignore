@@ -5,3 +5,9 @@ __pycache__
 tests
 docs
 .pytest_cache
+console/node_modules
+console/dist
+console/test-results
+console/playwright-report
+console/.env
+.env

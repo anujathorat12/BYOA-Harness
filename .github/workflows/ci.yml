@@ -17,3 +17,13 @@ jobs:
         run: python scripts/export_openapi.py && git diff --exit-code docs/openapi.json
       - name: Compose builds
         run: docker compose --env-file .env.example build
+  console:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: console } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: console/package-lock.json }
+      - run: npm ci
+      - run: npm test
+      - run: npm run build   # tsc --strict + production build

@@ -32,7 +32,7 @@ python -m venv .venv && pip install -e .
 python scripts/demo.py          # end-to-end walkthrough (screen-record friendly)
 ```
 
-Interactive API docs: <http://localhost:8080/docs> · static spec: [`docs/openapi.json`](docs/openapi.json).
+Operator console: <http://localhost:8081> (see [`console/README.md`](console/README.md)) · Interactive API docs: <http://localhost:8080/docs> · static spec: [`docs/openapi.json`](docs/openapi.json).
 
 Local development without Compose (SQLite, no auth in `dev` mode):
 

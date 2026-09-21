@@ -8,6 +8,7 @@ import { PolicyStudioPage } from "@/features/policies/PolicyStudioPage";
 import { ApprovalsPage } from "@/features/approvals/ApprovalsPage";
 import { SessionDetailPage } from "@/features/sessions/SessionDetailPage";
 import { SessionsPage } from "@/features/sessions/SessionsPage";
+import { AuditPage } from "@/features/audit/AuditPage";
 import { OverviewPage } from "@/features/overview/OverviewPage";
 
 export function App() {
@@ -29,6 +30,7 @@ export function App() {
         <Route path="sessions" element={<SessionsPage />} />
         <Route path="sessions/:id" element={<SessionDetailPage />} />
         <Route path="approvals" element={<ApprovalsPage />} />
+        <Route path="audit" element={<AuditPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
