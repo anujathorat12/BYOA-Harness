@@ -1,0 +1,21 @@
+# Healthcare data workflow (illustrative; no compliance claim): permitted dataset readable,
+# restricted records denied, external export of anything escalated to a human.
+id: healthcare-data
+description: Clinical information assistant
+budgets:
+  tokens: 20000
+rules:
+  - id: allow-permitted-dataset
+    decision: allow
+    match: { type: data.read, resource: "health.records.permitted" }
+  - id: allow-llm
+    decision: allow
+    match: { type: llm.complete }
+  - id: deny-restricted-records
+    decision: deny
+    match: { type: data.read, resource: "health.records.restricted*" }
+    reason: Restricted records may not be read by this agent
+  - id: export-needs-approval
+    decision: require-approval
+    match: { type: data.export }
+    reason: Any external transfer of data needs a human approver

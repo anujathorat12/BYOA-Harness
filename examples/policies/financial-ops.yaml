@@ -1,0 +1,29 @@
+# Financial operations: analysis is free within a token budget, transfers above a threshold need
+# a human, spend has a hard cap, non-permitted datasets are denied by default.
+id: financial-ops
+description: Transaction analysis agent
+budgets:
+  tokens: 20000
+  amount: 25000
+rules:
+  - id: allow-read-permitted-transactions
+    decision: allow
+    match: { type: data.read, resource: "finance.transactions" }
+  - id: allow-llm
+    decision: allow
+    match: { type: llm.complete }
+  - id: small-transfer-allowed
+    decision: allow
+    match:
+      type: payment.transfer
+      when: [ { field: params.amount, op: lte, value: 1000 } ]
+  - id: high-value-transfer-needs-approval
+    decision: require-approval
+    match:
+      type: payment.transfer
+      when: [ { field: params.amount, op: gt, value: 1000 } ]
+    reason: Transfers above 1000 need a human approver
+  - id: deny-account-master-data
+    decision: deny
+    match: { type: data.read, resource: "finance.accounts*" }
+    reason: Account master data is out of scope for this agent

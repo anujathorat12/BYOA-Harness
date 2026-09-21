@@ -1,0 +1,24 @@
+# Enterprise IT operations: read-only diagnostics are free, production changes need a human,
+# destructive production operations are never allowed.
+id: enterprise-it
+description: IT operations agent - diagnostics allowed, prod change escalated, destructive ops denied
+limits:
+  max_actions: 50
+rules:
+  - id: allow-read-logs
+    decision: allow
+    match: { type: data.read, resource: "prod.logs*" }
+  - id: allow-create-ticket
+    decision: allow
+    match: { type: ticket.create }
+  - id: allow-monitoring-api
+    decision: allow
+    match: { type: network.request, resource: "monitoring.internal.example" }
+  - id: prod-change-needs-approval
+    decision: require-approval
+    match: { type: production.modify }
+    reason: Production configuration changes need a human approver
+  - id: never-delete-prod
+    decision: deny
+    match: { type: production.delete }
+    reason: Destructive production operations are not permitted for agents
