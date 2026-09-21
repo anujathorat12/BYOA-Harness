@@ -67,7 +67,7 @@ async def test_unauthenticated_mode_is_only_reachable_in_dev(tmp_path):
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=dev), base_url="http://t") as c:
         assert (await c.get("/v1/whoami")).json()["name"] == "dev-admin"
 
-    prod = create_app(Settings(env="production", database_url=f"sqlite:///{tmp_path / 'p.db'}", api_keys=KEYS))
+    prod = create_app(Settings(env="production", database_url=f"sqlite:///{tmp_path / 'p.db'}", api_keys=dict(KEYS)))
     prod.state.settings.api_keys.clear()  # simulate a process that somehow lost its keys after startup
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=prod), base_url="http://t") as c:
         r = await c.get("/v1/whoami")

@@ -146,7 +146,7 @@ async def test_full_flow_allow_escalate_deny_and_audit(api):
 async def test_denied_approval_and_submitter_cannot_self_approve(api):
     await register_it_agent(api)
     # give alice the approver role too, to prove separation of duties applies to the SAME identity
-    api.app.state.settings.api_keys["k-both"] = Principal("alice", frozenset({"developer", "approver"}))
+    api.app.state.settings.api_keys["test-key-both"] = Principal("alice", frozenset({"developer", "approver"}))
     sid = (await api.post("/v1/agents/it-ops-agent/sessions", headers=hdr("dev"), json={})).json()["id"]
     for _ in range(150):
         pending = (await api.get("/v1/approvals", headers=hdr("appr"))).json()
@@ -154,7 +154,7 @@ async def test_denied_approval_and_submitter_cannot_self_approve(api):
             break
         await asyncio.sleep(0.2)
     aid = pending[0]["id"]
-    r = await api.post(f"/v1/approvals/{aid}/approve", headers={"Authorization": "Bearer k-both"}, json={})
+    r = await api.post(f"/v1/approvals/{aid}/approve", headers={"Authorization": "Bearer test-key-both"}, json={})
     assert r.status_code == 403
     assert (await api.post(f"/v1/approvals/{aid}/deny", headers=hdr("appr"), json={"comment": "too risky"})).status_code == 200
     assert (await api.post(f"/v1/approvals/{aid}/approve", headers=hdr("appr"), json={})).status_code == 409
