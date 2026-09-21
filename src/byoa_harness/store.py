@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import threading
 import uuid
+import weakref
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -130,12 +131,14 @@ class Store:
         self.engine = sa.create_engine(url, **kwargs)
         if url.startswith("sqlite"):
             @sa_event.listens_for(self.engine, "connect")
-            def _pragmas(dbapi_conn, _):  # noqa: ANN001
+            def _pragmas(dbapi_conn: Any, _: Any) -> None:
                 cur = dbapi_conn.cursor()
                 cur.execute("PRAGMA journal_mode=WAL")
                 cur.execute("PRAGMA synchronous=NORMAL")
                 cur.close()
-        self._chain_locks: dict[str, threading.Lock] = {}
+        # One lock per session serialises its hash chain. Weak values: a lock lives only while a thread holds or awaits
+        # it, so this map does not grow with the number of sessions ever created.
+        self._chain_locks: weakref.WeakValueDictionary[str, threading.Lock] = weakref.WeakValueDictionary()
         self._locks_guard = threading.Lock()
 
     def init_schema(self) -> None:

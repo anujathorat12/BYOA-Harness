@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -16,11 +18,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .. import __version__
-from ..approvals import ApprovalError, ApprovalService
+from ..approvals import ApprovalService
 from ..broker.broker import Broker
 from ..broker.llm import make_provider
 from ..broker.tools import Backends, ToolContext, default_tools
 from ..config import Principal, Settings
+from ..errors import DomainError
 from ..logging_setup import setup_logging
 from ..policy import (
     Action,
@@ -32,7 +35,7 @@ from ..policy import (
     parse_policy,
     simulate,
 )
-from ..runtime.manager import SessionManager, SubmitError
+from ..runtime.manager import SessionManager
 from ..runtime.shapes import SHAPES, ManifestError
 from ..store import Store
 
@@ -74,7 +77,7 @@ class TaskSubmission(_In):
     agent_version: int | None = Field(default=None, ge=1)
 
 
-class Decision(_In):
+class ApprovalDecision(_In):
     comment: str | None = Field(default=None, max_length=500)
 
 
@@ -96,8 +99,20 @@ class SimulateRequest(_In):
     limit: int = Field(default=1000, ge=1, le=5000)
 
 
+def _authenticate(keys: dict[str, Principal], token: str) -> Principal | None:
+    """Constant-time API-key lookup: compares against every configured key, never short-circuits on a match."""
+    if not token:
+        return None
+    supplied = token.encode()
+    match: Principal | None = None
+    for key, principal in keys.items():
+        if hmac.compare_digest(key.encode(), supplied):
+            match = principal
+    return match
+
+
 # ------------------------------------------------------------------------------------------ app
-def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAPI:  # noqa: ANN001
+def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     settings.validate()
     setup_logging(settings.log_level)
@@ -108,12 +123,14 @@ def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAP
                                                 settings.extra_ca_bundle),
                            settings.egress_allow_private)
     broker = Broker(store, settings, default_tools(), tool_ctx, approvals)
-    manager = SessionManager(store, settings, broker, approvals, sandbox_factory)
+    manager = SessionManager(store, settings, broker, approvals)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if not settings.api_keys:
             log.warning("no HARNESS_API_KEYS configured: running UNAUTHENTICATED as dev-admin (dev mode only)")
+        if settings.llm_provider == "mock":
+            log.warning("LLM_PROVIDER=mock: llm.complete returns placeholder text, not a real model (set LLM_PROVIDER=groq)")
         await manager.startup()
         yield
         await manager.shutdown()
@@ -130,6 +147,10 @@ def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAP
     @app.exception_handler(StarletteHTTPException)
     async def _http(request: Request, exc: StarletteHTTPException):
         return err(exc.status_code, "http_error", str(exc.detail), getattr(request.state, "rid", ""))
+
+    @app.exception_handler(DomainError)
+    async def _domain(request: Request, exc: DomainError):
+        return err(exc.status, "http_error", exc.message, getattr(request.state, "rid", ""))
 
     @app.exception_handler(RequestValidationError)
     async def _validation(request: Request, exc: RequestValidationError):
@@ -156,10 +177,13 @@ def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAP
     # ------------------------------------------------------------------------------ auth
     def principal(request: Request) -> Principal:
         if not settings.api_keys:
-            return Principal("dev-admin", frozenset({"admin"}))
+            # Settings.validate() already refuses to start unauthenticated outside dev; re-checked per request so a
+            # misconfigured process can never fall through to an anonymous admin.
+            if settings.env == "dev":
+                return Principal("dev-admin", frozenset({"admin"}))
+            raise HTTPException(401, "authentication is not configured")
         h = request.headers.get("authorization", "")
-        token = h[7:] if h.lower().startswith("bearer ") else ""
-        p = settings.api_keys.get(token)
+        p = _authenticate(settings.api_keys, h[7:] if h.lower().startswith("bearer ") else "")
         if not p:
             raise HTTPException(401, "missing or invalid API key")
         return p
@@ -174,7 +198,7 @@ def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAP
     def is_privileged(p: Principal) -> bool:
         return bool(p.roles & {"admin", "auditor", "approver"})
 
-    async def db(fn, *a, **kw):  # noqa: ANN001
+    async def db(fn: Callable[..., Any], *a: Any, **kw: Any) -> Any:
         return await asyncio.to_thread(fn, *a, **kw)
 
     def visible_session(p: Principal, row: dict[str, Any] | None) -> dict[str, Any]:
@@ -195,8 +219,7 @@ def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAP
             checks["database"] = "ok"
         except Exception:
             checks["database"] = "unavailable"
-        if settings.sandbox_enabled and sandbox_factory is None:
-            checks["sandbox"] = "ok" if await manager.docker_ok() else "unavailable"
+        checks["sandbox"] = "ok" if await manager.docker_ok() else "unavailable"
         ok = all(v == "ok" for v in checks.values())
         return JSONResponse({"status": "ready" if ok else "not_ready", "checks": checks}, status_code=200 if ok else 503)
 
@@ -363,11 +386,7 @@ def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAP
         agent = await db(store.get_agent, agent_id)
         if agent and not is_privileged(p) and agent["owner"] != p.name:
             raise HTTPException(404, "agent not found")
-        try:
-            s = await manager.submit(agent_id, body.task, p.name, [r.model_dump() for r in body.policies],
-                                     body.agent_version)
-        except SubmitError as e:
-            raise HTTPException(e.status, e.message) from e
+        s = await manager.submit(agent_id, body.task, p.name, [r.model_dump() for r in body.policies], body.agent_version)
         return _session_view(s)
 
     def _session_view(s: dict[str, Any]) -> dict[str, Any]:
@@ -456,18 +475,15 @@ def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAP
                              _: Principal = Depends(need("approver", "auditor"))):
         return [_approval_view(a) for a in await db(store.list_approvals, status, session_id)]
 
-    async def _decide(aid: str, approve: bool, body: Decision, p: Principal):
-        try:
-            return _approval_view(await approvals.decide(aid, approve, p.name, body.comment))
-        except ApprovalError as e:
-            raise HTTPException(e.status, e.message) from e
+    async def _decide(aid: str, approve: bool, body: ApprovalDecision, p: Principal):
+        return _approval_view(await approvals.decide(aid, approve, p.name, body.comment))
 
     @app.post(f"{v1}/approvals/{{aid}}/approve", tags=["approvals"], summary="Approve: resumes the paused agent")
-    async def approve(aid: str, body: Decision = Decision(), p: Principal = Depends(need("approver"))):
+    async def approve(aid: str, body: ApprovalDecision = ApprovalDecision(), p: Principal = Depends(need("approver"))):
         return await _decide(aid, True, body, p)
 
     @app.post(f"{v1}/approvals/{{aid}}/deny", tags=["approvals"], summary="Deny: the agent's call fails")
-    async def deny(aid: str, body: Decision = Decision(), p: Principal = Depends(need("approver"))):
+    async def deny(aid: str, body: ApprovalDecision = ApprovalDecision(), p: Principal = Depends(need("approver"))):
         return await _decide(aid, False, body, p)
 
     # ------------------------------------------------------------------------------- admin

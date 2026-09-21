@@ -12,7 +12,7 @@ ALLOW_ALL = "id: allow-all\nrules:\n - {id: all, decision: allow, match: {type: 
 
 def leftover_containers() -> list[str]:
     out = subprocess.run(["docker", "ps", "-aq", "--filter", "label=byoa.managed=1"],
-                         capture_output=True, text=True).stdout
+                         capture_output=True, text=True, check=False).stdout
     return out.split()
 
 

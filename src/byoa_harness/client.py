@@ -1,6 +1,7 @@
 """Small Python client for the harness REST API (the 'SDK' half of the task-submission contract)."""
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Iterator
 from typing import Any
@@ -57,7 +58,6 @@ class HarnessClient:
 
     def events(self, sid: str) -> Iterator[dict]:
         """Stream the session's audit events (SSE) until it ends."""
-        import json
         with self._c.stream("GET", f"/v1/sessions/{sid}/events", timeout=None) as r:
             kind = ""
             for line in r.iter_lines():
@@ -81,3 +81,17 @@ class HarnessClient:
 
     def audit(self, **filters: Any) -> dict:
         return self._req("GET", "/v1/audit", params={k: v for k, v in filters.items() if v is not None})
+
+    def verify_chain(self, session_id: str) -> dict:
+        return self._req("GET", f"/v1/audit/sessions/{session_id}/verify")
+
+    # operations and policy dry-run
+    def sessions(self, limit: int = 50) -> list[dict]:
+        return self._req("GET", "/v1/sessions", params={"limit": limit})
+
+    def overview(self) -> dict:
+        return self._req("GET", "/v1/admin/overview")
+
+    def simulate(self, **body: Any) -> dict:
+        """Dry-run policies against recorded history. Pass documents=[yaml, ...] or policies=[{"id", "version"}] plus filters."""
+        return self._req("POST", "/v1/policies/simulate", json=body)

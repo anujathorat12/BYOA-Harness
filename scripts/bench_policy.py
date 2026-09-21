@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from byoa_harness.policy import Action, EvalContext, evaluate_all, parse_policy  # noqa: E402
+from byoa_harness.policy import Action, EvalContext, evaluate_all, parse_policy
 
 rules = "\n".join(
     f" - {{id: r{i}, decision: allow, match: {{type: data.read, resource: 'ds{i}.*', when: [{{field: params.limit, op: lte, value: 100}}]}}}}"

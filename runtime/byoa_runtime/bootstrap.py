@@ -9,12 +9,12 @@ os.dup2(2, 1)
 sys.stdout = sys.stderr
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import importlib  # noqa: E402
-import json  # noqa: E402
-import traceback  # noqa: E402
+import importlib
+import json
+import traceback
 
-import declarative  # noqa: E402
-from byoa_sdk import Channel, Context  # noqa: E402
+import declarative
+from byoa_sdk import Channel, Context
 
 AGENT_DIR = "/tmp/agent"
 
@@ -53,7 +53,7 @@ def main() -> None:
             raise ValueError(f"unsupported shape {shape!r}")
         json.dumps(out)  # must be serialisable
         ch.send({"type": "result", "ok": True, "output": out})
-    except BaseException as e:  # noqa: BLE001 - report every failure to the harness
+    except BaseException as e:  # report every failure (incl. SystemExit) to the harness
         traceback.print_exc()
         ch.send({"type": "result", "ok": False, "error": f"{type(e).__name__}: {e}"[:500]})
 

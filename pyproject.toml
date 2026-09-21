@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "byoa-harness"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Bring-Your-Own-Agent harness: sandboxed execution with per-action policy enforcement"
 requires-python = ">=3.11"
 dependencies = [
@@ -22,6 +22,9 @@ dev = ["pytest>=8", "pytest-asyncio>=0.23", "pytest-cov>=5", "ruff>=0.4"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "byoa_harness.__version__"}
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

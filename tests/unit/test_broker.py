@@ -5,11 +5,12 @@ from pathlib import Path
 import pytest
 
 from byoa_harness import store as st
-from byoa_harness.approvals import ApprovalError, ApprovalService
+from byoa_harness.approvals import ApprovalService
 from byoa_harness.broker.broker import Broker, SessionGov
 from byoa_harness.broker.llm import MockLlm
 from byoa_harness.broker.tools import Backends, ToolContext, default_tools
 from byoa_harness.config import Settings
+from byoa_harness.errors import DomainError
 from byoa_harness.policy import parse_policy
 
 EX = Path(__file__).resolve().parents[2] / "examples" / "policies"
@@ -100,7 +101,9 @@ async def test_audit_failure_fails_closed_no_execution(env, monkeypatch):
 
 async def test_engine_exception_becomes_deny(env, monkeypatch):
     import byoa_harness.broker.broker as bmod
-    monkeypatch.setattr(bmod, "evaluate_all", lambda *a: (_ for _ in ()).throw(RuntimeError("bug")))
+    def broken(*_args):
+        raise RuntimeError("bug")
+    monkeypatch.setattr(bmod, "evaluate_all", broken)
     g = env.gov([policy("enterprise-it")])
     r = await env.broker.handle_call(g, call("ticket.create", title="t"))
     assert r["error"]["rule_id"] == "harness:engine-error" and env.backends.tickets == []
@@ -160,11 +163,11 @@ async def test_separation_of_duties_and_double_decision(env):
     g = env.gov([policy("enterprise-it")], submitter="alice")
     task = asyncio.create_task(env.broker.handle_call(g, call("production.modify", service="api", change="x")))
     apr = await _pending(env, g.session_id)
-    with pytest.raises(ApprovalError) as e:
+    with pytest.raises(DomainError) as e:
         await env.approvals.decide(apr["id"], True, "alice", None)  # submitter approving own action
     assert e.value.status == 403 and not task.done()
     await env.approvals.decide(apr["id"], True, "bob", None)
-    with pytest.raises(ApprovalError) as e2:
+    with pytest.raises(DomainError) as e2:
         await env.approvals.decide(apr["id"], False, "carol", None)
     assert e2.value.status == 409
     assert (await asyncio.wait_for(task, 2))["ok"]

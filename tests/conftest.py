@@ -21,7 +21,7 @@ IMAGE = "byoa-runtime:latest"
 
 def _docker_ready() -> bool:
     try:
-        return subprocess.run(["docker", "image", "inspect", IMAGE], capture_output=True, timeout=15).returncode == 0
+        return subprocess.run(["docker", "image", "inspect", IMAGE], capture_output=True, timeout=15, check=False).returncode == 0
     except Exception:
         return False
 
@@ -42,7 +42,7 @@ class Harness:
     """A fully wired harness without the HTTP layer, for sandbox/manager-level tests."""
 
     def __init__(self, tmp_path, **overrides):
-        base = dict(session_timeout_s=20, approval_timeout_s=10, max_concurrent_sessions=8)
+        base = {"session_timeout_s": 20, "approval_timeout_s": 10, "max_concurrent_sessions": 8}
         base.update(overrides)
         self.settings = Settings(**base)
         self.store = st.Store(f"sqlite:///{tmp_path / 'h.db'}")

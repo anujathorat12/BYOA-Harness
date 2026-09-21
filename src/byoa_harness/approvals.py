@@ -13,6 +13,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from .config import Settings
+from .errors import DomainError
 from .policy import Action, Decision
 from .store import Store
 
@@ -20,12 +21,6 @@ if TYPE_CHECKING:
     from .broker.broker import SessionGov
 
 log = logging.getLogger("approvals")
-
-
-class ApprovalError(Exception):
-    def __init__(self, status: int, message: str) -> None:
-        super().__init__(message)
-        self.status, self.message = status, message
 
 
 class ApprovalService:
@@ -79,14 +74,14 @@ class ApprovalService:
     async def decide(self, aid: str, approve: bool, by: str, comment: str | None) -> dict:
         rec = await asyncio.to_thread(self.store.get_approval, aid)
         if not rec:
-            raise ApprovalError(404, "approval not found")
+            raise DomainError(404, "approval not found")
         if rec["status"] != "pending":
-            raise ApprovalError(409, f"approval already {rec['status']}")
+            raise DomainError(409, f"approval already {rec['status']}")
         if self.settings.separation_of_duties and rec["submitted_by"] == by:
-            raise ApprovalError(403, "the submitter of a task may not approve its actions")
+            raise DomainError(403, "the submitter of a task may not approve its actions")
         status = "approved" if approve else "denied"
         if not await asyncio.to_thread(self.store.decide_approval, aid, status, by, comment):
-            raise ApprovalError(409, "approval was decided concurrently")
+            raise DomainError(409, "approval was decided concurrently")
         fut = self._waiters.get(aid)
         if fut and not fut.done():
             fut.set_result(status)

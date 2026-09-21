@@ -6,13 +6,13 @@ import contextlib
 import json
 import logging
 import time
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from ..approvals import ApprovalService
 from ..broker.broker import AuditUnavailable, Broker, SessionGov
 from ..config import Settings
+from ..errors import DomainError
 from ..policy import Policy, PolicyError, canonical_json, parse_policy
 from ..store import Store, now_iso
 from .sandbox import Limits, ProtocolViolation, Sandbox, SandboxError, docker_available, reap_orphans
@@ -21,12 +21,6 @@ from .shapes import SHAPES
 log = logging.getLogger("sessions")
 MAX_INFLIGHT_CALLS = 16
 MAX_TASK_BYTES = 64 * 1024
-
-
-class SubmitError(Exception):
-    def __init__(self, status: int, message: str) -> None:
-        super().__init__(message)
-        self.status, self.message = status, message
 
 
 @dataclass
@@ -47,14 +41,9 @@ class ActiveSession:
         return now - self.started - paused
 
 
-SandboxFactory = Callable[[str, str, Limits, int], Any]
-
-
 class SessionManager:
-    def __init__(self, store: Store, settings: Settings, broker: Broker, approvals: ApprovalService,
-                 sandbox_factory: SandboxFactory | None = None) -> None:
+    def __init__(self, store: Store, settings: Settings, broker: Broker, approvals: ApprovalService) -> None:
         self.store, self.settings, self.broker, self.approvals = store, settings, broker, approvals
-        self.factory: SandboxFactory = sandbox_factory or (lambda sid, img, lim, ml: Sandbox(sid, img, lim, ml))
         self._sem = asyncio.Semaphore(settings.max_concurrent_sessions)
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self.active: dict[str, ActiveSession] = {}
@@ -65,11 +54,10 @@ class SessionManager:
         failed = await asyncio.to_thread(self.store.fail_orphaned_sessions)
         expired = await asyncio.to_thread(self.store.expire_stale_approvals)
         reaped = 0
-        if self.settings.sandbox_enabled:
-            try:
-                reaped = await reap_orphans()
-            except Exception:
-                log.warning("could not reap orphaned containers (docker unavailable?)")
+        try:
+            reaped = await reap_orphans()
+        except Exception:
+            log.warning("could not reap orphaned containers (docker unavailable?)")
         log.info("startup recovery", extra={"failed_sessions": len(failed), "expired_approvals": expired,
                                             "reaped_containers": reaped})
 
@@ -97,13 +85,13 @@ class SessionManager:
         for pid, ver, source in refs:
             row = self.store.get_policy(pid, ver)
             if not row:
-                raise SubmitError(422, f"policy {pid}{'@' + str(ver) if ver else ''} not found")
+                raise DomainError(422, f"policy {pid}{'@' + str(ver) if ver else ''} not found")
             try:
                 pol = parse_policy(row["document"]).with_version(row["version"])
             except PolicyError as e:  # stored documents were validated on write; fail closed regardless
-                raise SubmitError(500, f"stored policy {pid} is invalid: {e}") from e
+                raise DomainError(500, f"stored policy {pid} is invalid: {e}") from e
             if pol.scope_agents and agent_id not in pol.scope_agents:
-                raise SubmitError(422, f"policy {pid} is not scoped to agent {agent_id}")
+                raise DomainError(422, f"policy {pid} is not scoped to agent {agent_id}")
             policies.append(pol)
             pinned.append({"id": pid, "version": row["version"], "source": source})
         return policies, pinned
@@ -112,14 +100,14 @@ class SessionManager:
                      agent_version: int | None = None) -> dict[str, Any]:
         agent = await asyncio.to_thread(self.store.get_agent, agent_id, agent_version)
         if not agent:
-            raise SubmitError(404, "agent not found")
+            raise DomainError(404, "agent not found")
         try:
             if len(canonical_json(task)) > MAX_TASK_BYTES:
-                raise SubmitError(413, "task too large")
+                raise DomainError(413, "task too large")
         except ValueError as e:
-            raise SubmitError(422, f"task is not valid JSON data: {e}") from e
+            raise DomainError(422, f"task is not valid JSON data: {e}") from e
         if len(self._tasks) >= self.settings.max_concurrent_sessions + self.settings.max_queued_sessions:
-            raise SubmitError(429, "harness at capacity; retry later")
+            raise DomainError(429, "harness at capacity; retry later")
         _, pinned = await asyncio.to_thread(self._resolve_policies, agent_id, session_refs)
         sid = await asyncio.to_thread(self.store.create_session, agent_id, agent["version"], by, task, pinned)
         await asyncio.to_thread(self.store.append_audit, sid, agent_id, "session.created",
@@ -184,7 +172,7 @@ class SessionManager:
             policies.append(parse_policy(doc["document"]).with_version(p["version"]))
         limits = adapter.limits(agent["manifest"], self.settings)
         gov = SessionGov(sid, row["agent_id"], row["submitted_by"], policies, self.store)
-        sb = self.factory(sid, adapter.image(self.settings), limits, self.settings.max_message_bytes)
+        sb = Sandbox(sid, adapter.image(self.settings), limits, self.settings.max_message_bytes)
         act = ActiveSession(sid, row["agent_id"], limits, gov, sb)
         self.active[sid] = act
 

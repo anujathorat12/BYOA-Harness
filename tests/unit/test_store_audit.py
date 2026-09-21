@@ -98,3 +98,12 @@ def test_terminal_status_never_overwritten(db):
     assert db.finish_session_if_active(sid, "succeeded", result={"ok": 1}) is True
     assert db.finish_session_if_active(sid, "failed", error="late") is False
     assert db.get_session(sid)["status"] == "succeeded"
+
+
+def test_per_session_locks_are_released_so_memory_does_not_grow_with_session_count(db):
+    import gc
+    for n in range(50):
+        db.append_audit(f"s{n}", "a", "k", {"n": n})
+    gc.collect()
+    assert len(db._chain_locks) == 0
+    assert all(db.verify_chain(f"s{n}")["valid"] for n in range(50))

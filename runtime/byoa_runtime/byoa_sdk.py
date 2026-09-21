@@ -15,7 +15,7 @@ agent -> harness
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, TextIO
 
 
 class ToolError(Exception):
@@ -33,7 +33,7 @@ DENIED_CODES = {"policy_denied", "approval_denied", "approval_expired", "invalid
 
 
 class Channel:
-    def __init__(self, rfile, wfile) -> None:  # noqa: ANN001
+    def __init__(self, rfile: TextIO, wfile: TextIO) -> None:
         self._r, self._w = rfile, wfile
 
     def send(self, msg: dict[str, Any]) -> None:

@@ -9,7 +9,6 @@ from .canonical import canonical_json, canonical_resource, sha256_hex
 ALLOW = "allow"
 DENY = "deny"
 REQUIRE_APPROVAL = "require-approval"
-EFFECTS = (ALLOW, DENY, REQUIRE_APPROVAL)
 # Strictness order: higher wins when several rules/policies disagree.
 STRICTNESS = {ALLOW: 0, REQUIRE_APPROVAL: 1, DENY: 2}
 

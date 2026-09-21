@@ -5,6 +5,8 @@ import json
 import os
 from dataclasses import dataclass, field
 
+MIN_API_KEY_LENGTH = 8
+
 
 def _int(name: str, default: int) -> int:
     return int(os.environ.get(name, default))
@@ -22,14 +24,14 @@ class Principal:
 
 @dataclass(frozen=True)
 class Settings:
-    env: str = "dev"
+    # Anything other than "dev" requires HARNESS_API_KEYS. "dev" (unauthenticated admin) must be asked for explicitly.
+    env: str = "production"
     database_url: str = "sqlite:///./harness.db"
     log_level: str = "INFO"
     api_keys: dict[str, Principal] = field(default_factory=dict)
 
     # sandbox
     sandbox_image: str = "byoa-runtime:latest"
-    sandbox_enabled: bool = True
     max_concurrent_sessions: int = 8
     max_queued_sessions: int = 100
     sandbox_memory_mb: int = 256
@@ -61,12 +63,11 @@ class Settings:
             for token, meta in json.loads(raw).items():
                 keys[token] = Principal(meta["name"], frozenset(meta["roles"]))
         return Settings(
-            env=os.environ.get("HARNESS_ENV", "dev"),
+            env=os.environ.get("HARNESS_ENV", "production"),
             database_url=os.environ.get("DATABASE_URL", "sqlite:///./harness.db"),
             log_level=os.environ.get("LOG_LEVEL", "INFO"),
             api_keys=keys,
             sandbox_image=os.environ.get("SANDBOX_IMAGE", "byoa-runtime:latest"),
-            sandbox_enabled=os.environ.get("SANDBOX_ENABLED", "1") == "1",
             max_concurrent_sessions=_int("MAX_CONCURRENT_SESSIONS", 8),
             max_queued_sessions=_int("MAX_QUEUED_SESSIONS", 100),
             sandbox_memory_mb=_int("SANDBOX_MEMORY_MB", 256),
@@ -88,5 +89,8 @@ class Settings:
     def validate(self) -> None:
         if self.env != "dev" and not self.api_keys:
             raise RuntimeError("HARNESS_API_KEYS must be set outside dev (refusing to start unauthenticated)")
+        # An unset variable in a templated environment (e.g. docker compose) becomes "", which must never be a valid key.
+        if any(len(key) < MIN_API_KEY_LENGTH for key in self.api_keys):
+            raise RuntimeError(f"every API key must be at least {MIN_API_KEY_LENGTH} characters (is a key variable unset?)")
         if self.llm_provider == "groq" and not self.groq_api_key:
             raise RuntimeError("LLM_PROVIDER=groq requires GROQ_API_KEY")

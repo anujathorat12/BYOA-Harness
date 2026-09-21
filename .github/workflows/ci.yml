@@ -8,11 +8,11 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - run: pip install -e ".[dev]"
-      - run: ruff check src tests scripts
+      - run: ruff check src tests scripts runtime
       - name: Build sandbox runtime image
         run: docker build -t byoa-runtime:latest runtime
       - name: Unit + integration + adversarial (real sandbox)
-        run: pytest -q
+        run: pytest -q --cov=byoa_harness --cov-report=term
       - name: OpenAPI is up to date
         run: python scripts/export_openapi.py && git diff --exit-code docs/openapi.json
       - name: Compose builds

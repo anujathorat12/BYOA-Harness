@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from byoa_harness.client import HarnessClient  # noqa: E402
+from byoa_harness.client import HarnessClient
 
 BASE = os.environ.get("HARNESS_URL", "http://localhost:8080")
 EX = Path(__file__).resolve().parents[1] / "examples"
@@ -118,7 +118,7 @@ def main() -> None:
     stop = threading.Event()
 
     h("2. Enterprise IT (package agent): allow / escalate / deny - approver APPROVES the prod change")
-    approver_thread(lambda a: True, stop)
+    approver_thread(lambda _a: True, stop)
     s = run("it-ops-agent")
     print("  result:", s["result"])
 
@@ -131,7 +131,7 @@ def main() -> None:
     time.sleep(1)
     stop = threading.Event()
     h("4. Financial ops: high-value transfer - approver DENIES; the transfer never happens")
-    approver_thread(lambda a: False, stop)
+    approver_thread(lambda _a: False, stop)
     s = run("txn-analyst", {"to": "vendor-9", "amount": 5000})
     print("  result: transfer =", s["result"]["transfer"])
 
@@ -139,7 +139,7 @@ def main() -> None:
     time.sleep(1)
     stop = threading.Event()
     h("5. Healthcare-style bundle, same engine: restricted denied, export escalated and APPROVED")
-    approver_thread(lambda a: True, stop)
+    approver_thread(lambda _a: True, stop)
     s = run("clinical-assistant")
     print("  restricted:", s["result"]["restricted"]["rule_id"], "| export:", s["result"]["export"])
     stop.set()
@@ -150,22 +150,22 @@ def main() -> None:
 
     h("7. Audit reconstruction: every denied action, with the rule that fired")
     for e in auditor.audit(effect="deny", kind="action.decided", limit=50)["events"]:
-        print(f"  {e['ts']}  {e['agent_id']:<18} {str(e['action_type']):<18} {str(e['resource']):<28} rule={e['rule_id']}")
+        print(f"  {e['ts']}  {e['agent_id']:<18} {e['action_type']!s:<18} {e['resource']!s:<28} rule={e['rule_id']}")
     print("\n  hash-chain verification per session:")
-    for sess in dev._req("GET", "/v1/sessions", params={"limit": 6}):
-        v = auditor._req("GET", f"/v1/audit/sessions/{sess['id']}/verify")
+    for sess in dev.sessions(limit=6):
+        v = auditor.verify_chain(sess['id'])
         print(f"  {sess['id']}  {sess['agent_id']:<18} events={v['events']:<3} valid={v['valid']}")
 
     h("8. Policy dry-run: what if the transfer threshold were 100? (history replayed, no agent runs)")
     stricter = (EX / "policies" / "financial-ops.yaml").read_text().replace("value: 1000", "value: 100")
-    sim = auditor._req("POST", "/v1/policies/simulate", json={"documents": [stricter], "agent_id": "txn-analyst"})
+    sim = auditor.simulate(documents=[stricter], agent_id="txn-analyst")
     print(f"  replayed {sim['total']} historical actions; {sim['changed']} would change:")
     for r in sim["results"]:
         if r["changed"]:
             print(f"    {r['type']} {r['resource']}: {r['original']['effect']} -> {r['simulated']['effect']} (rule {r['simulated']['rule_id']})")
 
     h("9. Operator view")
-    ov = auditor._req("GET", "/v1/admin/overview")
+    ov = auditor.overview()
     print("  decisions:", ov["decisions"], "| sessions:", ov["sessions"])
 
 

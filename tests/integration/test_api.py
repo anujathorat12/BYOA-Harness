@@ -4,43 +4,14 @@ import asyncio
 import subprocess
 from pathlib import Path
 
-import httpx
 import pytest
 import yaml
 
-from byoa_harness.api.app import create_app
-from byoa_harness.config import Principal, Settings
+from byoa_harness.config import Principal
+
+from .helpers import hdr
 
 EX = Path(__file__).resolve().parents[2] / "examples"
-KEYS = {
-    "k-admin": Principal("root", frozenset({"admin"})),
-    "k-dev": Principal("alice", frozenset({"developer"})),
-    "k-dev2": Principal("mallory", frozenset({"developer"})),
-    "k-appr": Principal("bob", frozenset({"approver"})),
-    "k-aud": Principal("audrey", frozenset({"auditor"})),
-}
-
-
-@pytest.fixture
-async def api(tmp_path):
-    s = Settings(env="test", database_url=f"sqlite:///{tmp_path / 'api.db'}", api_keys=KEYS, session_timeout_s=30,
-                 approval_timeout_s=20)
-    app = create_app(s)
-    await app.state.manager.startup()
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
-        c.app = app
-        yield c
-    await app.state.manager.shutdown()
-
-
-
-KEYS_TOKEN = {"admin": "k-admin", "dev": "k-dev", "dev2": "k-dev2", "appr": "k-appr", "aud": "k-aud"}
-
-
-def hdr(role):
-    return {"Authorization": f"Bearer {KEYS_TOKEN[role]}"}
-
-
 async def register_it_agent(api):
     src = (EX / "agents" / "it-ops-agent" / "main.py").read_text()
     r = await api.post("/v1/agents", headers=hdr("dev"), json={
@@ -150,7 +121,7 @@ async def test_full_flow_allow_escalate_deny_and_audit(api):
     assert backends.prod_changes == []  # nothing happened while pending
     # the sandbox process itself is frozen by the cgroup freezer, not merely blocked on a pipe
     paused = subprocess.run(["docker", "inspect", "-f", "{{.State.Paused}}", f"byoa-{sid}"],
-                            capture_output=True, text=True).stdout.strip()
+                            capture_output=True, text=True, check=False).stdout.strip()
     assert paused == "true"
 
     assert (await api.post(f"/v1/approvals/{apr['id']}/approve", headers=hdr("appr"), json={"comment": "ok"})).status_code == 200
