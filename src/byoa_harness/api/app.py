@@ -104,7 +104,8 @@ def create_app(settings: Settings | None = None, sandbox_factory=None) -> FastAP
     store = Store(settings.database_url)
     store.init_schema()
     approvals = ApprovalService(store, settings)
-    tool_ctx = ToolContext(Backends(), make_provider(settings.llm_provider, settings.groq_api_key, settings.groq_model),
+    tool_ctx = ToolContext(Backends(), make_provider(settings.llm_provider, settings.groq_api_key, settings.groq_model,
+                                                settings.extra_ca_bundle),
                            settings.egress_allow_private)
     broker = Broker(store, settings, default_tools(), tool_ctx, approvals)
     manager = SessionManager(store, settings, broker, approvals, sandbox_factory)

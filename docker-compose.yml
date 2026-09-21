@@ -52,8 +52,11 @@ services:
       SANDBOX_IMAGE: byoa-runtime:latest
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      EXTRA_CA_BUNDLE: ${EXTRA_CA_BUNDLE:-}
       MAX_CONCURRENT_SESSIONS: 8
       HARNESS_API_KEYS: '{"${ADMIN_KEY}":{"name":"admin","roles":["admin"]},"${DEV_KEY}":{"name":"alice","roles":["developer"]},"${APPROVER_KEY}":{"name":"bob","roles":["approver"]},"${AUDITOR_KEY}":{"name":"audrey","roles":["auditor"]}}'
+    volumes: ["./certs:/certs:ro"]   # optional extra CA roots (see README: corporate TLS inspection)
     ports: ["8080:8080"]
     networks: [control]
     read_only: true

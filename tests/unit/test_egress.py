@@ -42,3 +42,13 @@ async def test_mixed_public_and_private_answer_is_refused(monkeypatch):
     monkeypatch.setattr(asyncio.get_running_loop().__class__, "getaddrinfo", fake)
     with pytest.raises(EgressError):
         await resolve_public("rebind.example", 80, allow_private=False)
+
+
+def test_ssl_context_keeps_verification_and_loads_extra_ca():
+    import ssl
+
+    import certifi
+
+    from byoa_harness.broker.llm import build_ssl_context
+    ctx = build_ssl_context(certifi.where())
+    assert ctx.verify_mode == ssl.CERT_REQUIRED and ctx.check_hostname is True

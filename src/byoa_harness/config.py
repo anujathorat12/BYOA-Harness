@@ -49,8 +49,9 @@ class Settings:
     # llm / egress
     llm_provider: str = "mock"  # mock | groq
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-20b"
     egress_allow_private: bool = False
+    extra_ca_bundle: str = ""  # PEM file with additional trusted roots (e.g. a TLS-inspecting corporate proxy)
 
     @staticmethod
     def from_env() -> Settings:
@@ -79,8 +80,9 @@ class Settings:
             separation_of_duties=os.environ.get("SEPARATION_OF_DUTIES", "1") == "1",
             llm_provider=os.environ.get("LLM_PROVIDER", "mock"),
             groq_api_key=os.environ.get("GROQ_API_KEY", ""),
-            groq_model=os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            groq_model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b"),
             egress_allow_private=os.environ.get("EGRESS_ALLOW_PRIVATE", "0") == "1",
+            extra_ca_bundle=os.environ.get("EXTRA_CA_BUNDLE", ""),
         )
 
     def validate(self) -> None:

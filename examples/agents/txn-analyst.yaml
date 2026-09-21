@@ -9,7 +9,7 @@ spec:
       args: { dataset: finance.transactions }
     - id: summary
       llm: "Summarise these transactions in one sentence: ${txns.records}"
-      max_tokens: 100
+      max_tokens: 400
     - id: master
       call: data.read
       args: { dataset: finance.accounts.master }
