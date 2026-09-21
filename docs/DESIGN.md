@@ -101,7 +101,7 @@ compliance certification, multi-region HA.
 ```
  sandbox (no net, no mounts, no secrets)            harness (trusted)
 ┌──────────────────────────────┐   stdin/stdout   ┌────────────────────────────────────────────┐
-│ third-party agent code       │  JSON-lines pipe │ PEP: Broker.execute(call)                   │
+│ third-party agent code       │  JSON-lines pipe │ PEP: Broker.handle_call(call)                │
 │  (package | declarative | …) │ ───────────────▶ │  1 canonicalize → Action                   │
 │  can only *request*          │                  │  2 PDP: PolicyEngine.evaluate(action, ctx) │
 │                              │ ◀─────────────── │  3 audit row (decision) — fail closed      │
@@ -114,7 +114,7 @@ compliance certification, multi-region HA.
 
 * **PDP** = `byoa_harness.policy` — pure functions, no I/O, no imports from the
   rest of the app (enforced by a test). Unit-testable without any agent.
-* **PEP** = `Broker.execute`. The *only* code path that invokes a tool, and it
+* **PEP** = `Broker.handle_call`. The *only* code path that invokes a tool, and it
   cannot invoke a tool without a `Decision` object. There is no second door:
   the sandbox has no network, no mounts and no credentials, so a side effect that
   does not go through the broker is impossible rather than merely forbidden.

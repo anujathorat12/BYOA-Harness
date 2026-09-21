@@ -4,7 +4,7 @@
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `HARNESS_ENV` | `dev` | Outside `dev` the service refuses to start without API keys |
+| `HARNESS_ENV` | `production` | Anything but `dev` refuses to start without API keys. `dev` (unauthenticated local admin) must be asked for explicitly |
 | `HARNESS_API_KEYS` | — | JSON `{"token":{"name":"alice","roles":["developer"]}}` |
 | `DATABASE_URL` | `sqlite:///./harness.db` | `postgresql+psycopg://…` in production |
 | `SANDBOX_IMAGE` | `byoa-runtime:latest` | Image every agent runs in |
@@ -58,7 +58,7 @@ active sessions, pending approvals, decisions by effect, sessions by status) · 
    sticky routing or moving the broker state to the database.
 7. **Static API keys** from the environment. Use your IdP/OIDC and a secret manager when integrating.
 8. **DNS**: the http tool pins the validated IP and does not follow redirects; it is not a general egress proxy.
-9. **Groq provider** is implemented but was not run against the live API in automated tests.
+9. **Groq provider** is verified by hand against the live API but not in automated tests (CI has no key or corporate proxy CA).
 10. **No agent code signing or provenance** — registration proves who submitted an agent, not that its code is safe.
 
 ## Suggested path to production

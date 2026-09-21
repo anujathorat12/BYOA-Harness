@@ -30,6 +30,18 @@ Full reasoning, requirements and threat model: [`docs/DESIGN.md`](docs/DESIGN.md
 | **`docker` CLI + pipe, not the SDK / unix sockets.** | Identical on Linux/macOS/Docker Desktop; the whole isolation flag set is one function. | Process-spawn overhead per session (~0.3 s). |
 | **One service + Postgres**, not microservices. | Simplest thing that holds at production scale for this problem. | Session affinity to a replica for now. |
 
+## Deployment and trust boundaries
+
+```
+ browser (untrusted) ─▶ nginx :8081 (static console, CSP, same-origin proxy) ─▶ harness :8080 ─▶ Postgres
+                                                                              ├─▶ docker-socket-proxy ─▶ Docker ─▶ sandboxes (no network)
+                                                                              └─▶ Groq (API key lives only here)
+```
+Untrusted: the browser and all agent code. Trusted: nginx, harness, Postgres, socket proxy. Authentication is a bearer key
+mapped to a name and roles; **authorization is enforced by the harness on every request** (the console only mirrors it
+to disable controls). Unauthenticated by design: `/healthz`, `/readyz`, `/metrics`, `/docs`. Review findings, what was
+fixed and what still needs a decision: [`docs/ENGINEERING_REVIEW.md`](docs/ENGINEERING_REVIEW.md).
+
 ## Where each rubric item lives
 Sandbox: `runtime/sandbox.py` + `tests/adversarial/` · Policy: `policy/` + `tests/unit/test_policy_engine.py` ·
 BYOA: `runtime/shapes.py`, `docs/BYOA_CONTRACT.md` · Audit: `store.py`, `/v1/audit` · Approvals: `approvals.py` ·

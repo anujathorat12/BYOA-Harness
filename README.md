@@ -34,12 +34,12 @@ python scripts/demo.py          # end-to-end walkthrough (screen-record friendly
 
 Operator console: <http://localhost:8081> (see [`console/README.md`](console/README.md)) · Interactive API docs: <http://localhost:8080/docs> · static spec: [`docs/openapi.json`](docs/openapi.json).
 
-Local development without Compose (SQLite, no auth in `dev` mode):
+Local development without Compose (SQLite; `HARNESS_ENV=dev` explicitly opts in to running without API keys):
 
 ```bash
 docker build -t byoa-runtime:latest runtime       # sandbox image
-pip install -e ".[dev]" && pytest                 # 143 tests; sandbox tests skip if Docker is absent
-uvicorn --factory byoa_harness.main:create_app
+pip install -e ".[dev]" && pytest                 # 316 tests; the 21 that use the real sandbox skip if Docker is absent
+HARNESS_ENV=dev uvicorn --factory byoa_harness.main:create_app
 ```
 
 ## 60-second tour of the API
@@ -92,11 +92,11 @@ Benchmarks on a developer laptop (Windows 11, Docker Desktop). They show orders 
 * **Policy evaluation** (`scripts/bench_policy.py`, 201 rules, 20 000 evaluations): p50 169 µs, p99 508 µs.
 * **Concurrency** (`scripts/bench_concurrency.py 16`): 16 sessions against a cap of 8 concurrent, all 16 succeeded
   in 9.4 s (8 ran, 8 queued), zero leaked containers afterwards.
-* **Tests**: 143 pass — 54 policy-engine, 58 broker/store/egress, 15 adversarial real-sandbox, 16 API/end-to-end.
+* **Tests**: 316 backend (134 unit: policy engine, broker, store, config/auth; 167 API, including an exhaustive role x endpoint authorization matrix; 15 adversarial attacks against the real sandbox), 18 console unit tests, and 29 Playwright end-to-end tests that drive a real browser against the live stack.
 
 ## Known limitations
 
-Read [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full list. The ones that matter most:
+Read [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full list and [`docs/ENGINEERING_REVIEW.md`](docs/ENGINEERING_REVIEW.md) for the audit of the codebase (fixed / intentional / needs a decision). The ones that matter most:
 
 1. **Containers share the host kernel.** The isolation flags are strong, but a kernel exploit is out of scope.
    For hostile multi-tenant use, run sandboxes under gVisor/Kata/Firecracker (`--runtime`).
@@ -106,5 +106,5 @@ Read [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full list. The ones that
    Bring-your-own-image is the natural third shape (see the contract doc).
 4. **Reference connectors are simulators.** Real organisations add `Tool` subclasses for their own systems.
 5. **A session lives on one replica** and pending approvals do not survive a restart (they fail closed).
-6. **The Groq provider is implemented but was not exercised against the live API in CI**; `mock` is the default.
+6. **The Groq provider is verified by hand against the live API, not in CI**; `mock` is the default.
 7. The 3–5 minute demo video is not included; `scripts/demo.py` is the script for recording it.
