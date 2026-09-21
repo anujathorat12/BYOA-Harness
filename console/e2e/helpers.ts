@@ -27,3 +27,21 @@ export async function apiCall<T = unknown>(role: RoleName, method: string, path:
   if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${await res.text()}`);
   return (await res.json()) as T;
 }
+
+export interface SessionRow { id: string; status: string; result: unknown; error: string | null; submitted_by: string }
+
+/** Submit a real task (as `role`) and wait until the session reaches a terminal state. */
+export async function runSession(role: RoleName, agentId: string, task: unknown = {}): Promise<SessionRow> {
+  const s = await apiCall<SessionRow>(role, "POST", `/v1/agents/${agentId}/sessions`, { task });
+  return waitSession(role, s.id);
+}
+
+export async function waitSession(role: RoleName, id: string, timeoutMs = 60_000): Promise<SessionRow> {
+  const end = Date.now() + timeoutMs;
+  while (Date.now() < end) {
+    const s = await apiCall<SessionRow>(role, "GET", `/v1/sessions/${id}`);
+    if (!["queued", "running"].includes(s.status)) return s;
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  throw new Error(`session ${id} did not finish`);
+}
