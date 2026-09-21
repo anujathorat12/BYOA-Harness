@@ -1,0 +1,18 @@
+# Declarative-shape example for a healthcare-style policy bundle (illustrative, no compliance claim).
+id: clinical-assistant
+shape: declarative
+description: Summarises permitted records; attempts restricted read and an external export
+spec:
+  steps:
+    - id: permitted
+      call: data.read
+      args: { dataset: health.records.permitted }
+    - id: restricted
+      call: data.read
+      args: { dataset: health.records.restricted.psych }
+      on_denied: continue
+    - id: export
+      call: data.export
+      args: { dataset: health.records.permitted, destination: "research-partner.example" }
+      on_denied: continue
+    - return: { permitted: "${permitted.records}", restricted: "${restricted}", export: "${export}" }

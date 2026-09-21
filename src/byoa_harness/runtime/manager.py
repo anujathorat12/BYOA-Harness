@@ -58,6 +58,7 @@ class SessionManager:
         self._sem = asyncio.Semaphore(settings.max_concurrent_sessions)
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self.active: dict[str, ActiveSession] = {}
+        self._finalizers: set[asyncio.Future[None]] = set()
 
     # ---------------------------------------------------------------- lifecycle
     async def startup(self) -> None:
@@ -76,6 +77,10 @@ class SessionManager:
         for t in list(self._tasks.values()):
             t.cancel()
         await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        await asyncio.gather(*list(self._finalizers), return_exceptions=True)
+        for act in list(self.active.values()):  # last resort: never leave a sandbox behind
+            with contextlib.suppress(Exception):
+                await act.sandbox.destroy()
 
     async def docker_ok(self) -> bool:
         return await docker_available()
@@ -143,7 +148,11 @@ class SessionManager:
             log.exception("session crashed", extra={"session_id": sid})
             status, reason = "failed", f"internal error: {type(e).__name__}"
         finally:
-            await asyncio.shield(self._finalize(sid, status, reason, output, act))
+            # Tracked so shutdown() can wait for it even if this task is cancelled a second time.
+            fin = asyncio.ensure_future(self._finalize(sid, status, reason, output, act))
+            self._finalizers.add(fin)
+            fin.add_done_callback(self._finalizers.discard)
+            await asyncio.shield(fin)
 
     async def _finalize(self, sid: str, status: str, reason: str, output: Any, act: ActiveSession | None) -> None:
         act = act or self.active.get(sid)  # cancelled/crashed mid-run: `_execute` never returned its handle

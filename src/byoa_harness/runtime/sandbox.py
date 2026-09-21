@@ -177,14 +177,26 @@ class Sandbox:
             return {}
 
     async def destroy(self) -> None:
-        """Kill and remove the container, then reap the client process. Idempotent."""
-        with contextlib.suppress(Exception):
-            await docker("rm", "-f", self.name, timeout=30)
+        """Stop the client, then remove the container until it is verifiably gone. Idempotent.
+
+        The client is killed first so it cannot issue a late create/start; the removal loop covers a
+        create request already in flight at the daemon when we were cancelled.
+        """
         if self._proc and self._proc.returncode is None:
             with contextlib.suppress(ProcessLookupError):
                 self._proc.kill()
             with contextlib.suppress(Exception):
                 await asyncio.wait_for(self._proc.wait(), 5)
+        for _ in range(6):
+            with contextlib.suppress(Exception):
+                await docker("rm", "-f", self.name, timeout=30)
+                _, out, _ = await docker("ps", "-aq", "--filter", f"name=^{self.name}$")
+                if not out.strip():
+                    break
+            await asyncio.sleep(0.3)
+        else:
+            log.error("sandbox container may be leaked; startup reaper will remove it",
+                      extra={"session_id": self.session_id})
         if self._stderr_task:
             self._stderr_task.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):

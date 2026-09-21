@@ -1,0 +1,21 @@
+# Declarative-shape example: financial transaction analyst. No code - just steps the harness governs.
+id: txn-analyst
+shape: declarative
+description: Reads transactions, summarises them, attempts a task-supplied transfer
+spec:
+  steps:
+    - id: txns
+      call: data.read
+      args: { dataset: finance.transactions }
+    - id: summary
+      llm: "Summarise these transactions in one sentence: ${txns.records}"
+      max_tokens: 100
+    - id: master
+      call: data.read
+      args: { dataset: finance.accounts.master }
+      on_denied: continue
+    - id: transfer
+      call: payment.transfer
+      args: { to: "${task.to}", amount: "${task.amount}" }
+      on_denied: continue
+    - return: { summary: "${summary.text}", master_data: "${master}", transfer: "${transfer}" }

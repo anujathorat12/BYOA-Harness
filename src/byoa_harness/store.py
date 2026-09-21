@@ -369,3 +369,15 @@ class Store:
             return c.execute(approvals.update().where(approvals.c.status == "pending").values(
                 status="expired", decided_by="harness", decided_at=now_iso(),
                 comment="harness restarted while approval was pending")).rowcount
+
+    # ------------------------------------------------------------------- stats
+    def decision_counts(self) -> dict[str, int]:
+        with self.engine.connect() as c:
+            rows = c.execute(sa.select(audit_events.c.effect, sa.func.count()).where(
+                audit_events.c.kind == "action.decided").group_by(audit_events.c.effect)).all()
+        return {r[0] or "none": r[1] for r in rows}
+
+    def session_counts(self) -> dict[str, int]:
+        with self.engine.connect() as c:
+            rows = c.execute(sa.select(sessions.c.status, sa.func.count()).group_by(sessions.c.status)).all()
+        return {r[0]: r[1] for r in rows}
