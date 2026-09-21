@@ -101,7 +101,7 @@ class Broker:
             err["rule_id"] = rule_id
         return {"type": "response", "id": call_id, "ok": False, "error": err}
 
-    async def _refuse(self, gov: SessionGov, call_id: str, tool: str, raw_args: Any, rule: str, reason: str,
+    async def refuse(self, gov: SessionGov, call_id: str, tool: str, raw_args: Any, rule: str, reason: str,
                       code: str) -> dict[str, Any]:
         """Audited denial for requests that never became a valid Action."""
         d = Decision(DENY, rule, "", 0, reason)
@@ -118,11 +118,11 @@ class Broker:
         call_id = str(call.get("id", ""))[:64]
         tool_name, args = call.get("tool"), call.get("args", {})
         if not isinstance(tool_name, str) or not isinstance(args, dict):
-            return await self._refuse(gov, call_id, str(tool_name), args, "harness:malformed-call",
+            return await self.refuse(gov, call_id, str(tool_name), args, "harness:malformed-call",
                                       "call must have a string 'tool' and an object 'args'", "invalid_call")
         tool = self.tools.get(tool_name)
         if tool is None:
-            return await self._refuse(gov, call_id, tool_name, args, "harness:unknown-tool",
+            return await self.refuse(gov, call_id, tool_name, args, "harness:unknown-tool",
                                       f"unknown tool '{tool_name[:64]}'", "unknown_tool")
 
         # ---- 1-3. canonicalize, decide, audit: serialized per session so budgets can't be raced ----------
@@ -131,7 +131,7 @@ class Broker:
                 action = tool.build_action(args)
             except (ToolArgError, CanonicalizationError) as e:
                 gov.action_count += 1
-                return await self._refuse(gov, call_id, tool_name, args, "harness:invalid-arguments",
+                return await self.refuse(gov, call_id, tool_name, args, "harness:invalid-arguments",
                                           str(e)[:300], "invalid_arguments")
             ctx = gov.context()
             try:
