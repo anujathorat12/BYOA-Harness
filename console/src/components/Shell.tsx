@@ -1,7 +1,8 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Bot, ClipboardCheck, LayoutDashboard, LogOut, ScrollText, ShieldCheck, Terminal } from "lucide-react";
+import { Activity, Bot, Bug, ClipboardCheck, LayoutDashboard, LogOut, ScrollText, ShieldCheck, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AlertsButton, useApprovalAlerts } from "@/components/ApprovalAlerts";
 import { RoleChips } from "@/components/badges";
 import { api } from "@/lib/api";
 import { useAuth, useMe } from "@/lib/auth";
@@ -15,6 +16,7 @@ const NAV = [
   { to: "/sessions", label: "Live Sessions", icon: Terminal },
   { to: "/approvals", label: "Approvals", icon: ClipboardCheck, badge: true },
   { to: "/audit", label: "Audit Log", icon: ScrollText },
+  { to: "/attack-lab", label: "Attack Lab", icon: Bug },
 ];
 
 export function Shell() {
@@ -29,6 +31,8 @@ export function Shell() {
   });
   const ready = useQuery({ queryKey: ["ready"], queryFn: api.readiness, refetchInterval: 10_000 });
   const pendingCount = pending.data?.length ?? 0;
+  const canDecide = can(me.roles, "approval.decide");
+  const alerts = useApprovalAlerts({ pending: pending.data, active: canDecide });
 
   return (
     <div className="flex h-screen">
@@ -70,6 +74,7 @@ export function Shell() {
             />
             {ready.data?.status === "ready" ? "Harness ready" : ready.data ? "Harness degraded" : ready.isError ? "Harness unreachable" : "Checking…"}
           </div>
+          {canDecide && <AlertsButton enabled={alerts.enabled} onToggle={() => void alerts.toggle()} />}
           <div>
             <div className="mb-1 font-medium text-white" data-testid="whoami-name">{me.name}</div>
             <RoleChips roles={me.roles} />
